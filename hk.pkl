@@ -2,6 +2,5 @@ amends "package://github.com/jdx/hk/releases/download/v2.6.0/hk@2.6.0#/Config.pk
 import "package://github.com/jdx/hk/releases/download/v2.6.0/hk@2.6.0#/Builtins.pkl"
 
 steps {
-  ["actionlint"] = Builtins.actionlint
-  ["zizmor"] = Builtins.zizmor
+  ["jactionlint"] = Builtins.jactionlint
 }

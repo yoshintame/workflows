@@ -7,15 +7,19 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: ${{ github.workflow }}-caller-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   verify:
-    uses: ./.github/workflows/ci.yml # zizmor: ignore[self-repository] actionlint 1.7.12 rejects the $/ syntax
+    uses: $/.github/workflows/ci.yml
     permissions:
       contents: read
 
   release:
     needs: verify
     if: github.event_name == 'push'
-    uses: ./.github/workflows/release-semantic.yml # zizmor: ignore[self-repository] actionlint 1.7.12 rejects the $/ syntax
+    uses: $/.github/workflows/release-semantic.yml
     permissions:
       contents: write

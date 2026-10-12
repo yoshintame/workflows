@@ -23,6 +23,10 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: ${{ github.workflow }}-caller-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   verify:
     uses: yoshintame/workflows/.github/workflows/ci.yml@<sha> # vX.Y.Z
@@ -40,7 +44,7 @@ jobs:
       id-token: write
 ```
 
-Reference workflows by full commit SHA with the version comment; Renovate updates both.
+Reference workflows by full commit SHA with the version comment; Renovate updates both. The caller's concurrency group carries its own `-caller` part, so it never equals the `release` group of the called workflows, and it cancels superseded runs only for pull requests, never a release on `main`.
 
 ## Registries and permissions
 
@@ -86,4 +90,4 @@ Releases are `vX.Y.Z` tags with GitHub Releases, cut by this repository's own `r
 
 ## Checks
 
-`mise install && hk check --all` runs actionlint (with shellcheck for `run:` scripts) and zizmor on this repository.
+`mise install && hk check --all` runs jactionlint (its `default` profile, with shellcheck for `run:` scripts) on this repository. `ci.yml` turns on its online checks (impostor commits, known vulnerable actions, archived repositories, stale refs) with the read-only `github.token`.
