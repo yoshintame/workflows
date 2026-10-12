@@ -82,7 +82,7 @@ Release workflows use the concurrency group `release`. Do not reuse that group n
 
 ## Versioning
 
-Releases are `vX.Y.Z` tags. A breaking change to inputs, required permissions or project requirements is a major version.
+Releases are `vX.Y.Z` tags with GitHub Releases, cut by this repository's own `release-semantic.yml` from Conventional Commits on `main`. A breaking change to inputs, required permissions or project requirements is a major version.
 
 ## Checks
 

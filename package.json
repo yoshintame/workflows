@@ -1,0 +1,21 @@
+{
+  "name": "workflows",
+  "private": true,
+  "release": {
+    "plugins": [
+      "@semantic-release/commit-analyzer",
+      "@semantic-release/release-notes-generator",
+      [
+        "@semantic-release/github",
+        {
+          "successComment": false,
+          "failComment": false,
+          "releasedLabels": false
+        }
+      ]
+    ]
+  },
+  "devDependencies": {
+    "semantic-release": "^25.0.9"
+  }
+}
