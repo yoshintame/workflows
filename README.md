@@ -4,7 +4,7 @@ Shared GitHub Actions reusable workflows for `yoshintame/*` repositories.
 
 | Workflow | Purpose | Project requirements |
 |---|---|---|
-| `ci.yml` | `hk check --all --slow --no-fail-fast` | `mise.toml` with `hk` and the step tools, `hk.pkl`; `bun.lock` / `bun.lockb` or `uv.lock` is installed when present |
+| `ci.yml` | `hk check --all --slow --no-fail-fast` | `mise.toml` with `hk` and the step tools, `hk.pkl`; `bun.lock` / `bun.lockb` or `uv.lock` is installed when present; dependencies from GitHub Packages are not supported |
 | `ci-nix.yml` | `nix flake check -L` | `flake.nix` exposing `checks` (treefmt-nix, git-hooks.nix, own checks) |
 | `release-semantic.yml` | semantic-release for a single-package repo | `mise.toml` with `bun`, `semantic-release` in `devDependencies` |
 | `release-changesets.yml` | Changesets v3 publish without a Version PR | `mise.toml` with `bun`, `@changesets/cli` v3 in `devDependencies`; versions are bumped locally with `changeset version` |
@@ -44,7 +44,7 @@ Reference workflows by full commit SHA with the version comment; Renovate update
 
 ## Registries and permissions
 
-The package's `publishConfig.registry` selects the registry; the workflows take no registry input. Release jobs always write a GitHub Packages token scoped to `npm.pkg.github.com`, and npm tries OIDC trusted publishing first, so the same workflow serves both registries.
+The package's `publishConfig.registry` selects the registry; the workflows take no registry input. Release jobs set `GITHUB_TOKEN` for the whole job and write `//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}` to `~/.npmrc`, the same placeholder a project `.npmrc` uses, so every npm and bun call in the job authenticates to GitHub Packages and the token reaches no other registry. npm tries OIDC trusted publishing first, so the same workflow serves both registries.
 
 Permissions are granted by the caller. Release jobs inherit them; check jobs narrow them.
 
@@ -66,7 +66,11 @@ GitHub Packages: scoped package name and `publishConfig.registry: https://npm.pk
 
 ## Changesets mode
 
-`release-changesets.yml` publishes versions that are bumped and committed locally. Any pending changeset in `main` fails the run: Changesets checks for unpublished versions only when `.changeset` holds no pending changesets, so a pending one would silently hold back an already bumped release.
+`release-changesets.yml` publishes versions that are bumped and committed locally. Any changeset file in `.changeset` fails the run, empty changesets included: Changesets checks for unpublished versions only when `.changeset` holds no changesets, so a pending one would silently hold back an already bumped release.
+
+## Concurrency
+
+Release workflows use the concurrency group `release`. Do not reuse that group name in the caller: GitHub detects a deadlock between the caller and the called workflow.
 
 ## Isolation
 
