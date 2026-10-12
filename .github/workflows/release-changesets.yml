@@ -15,29 +15,62 @@ concurrency:
 jobs:
   select-mode:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
+      packages: read
+    env:
+      HUSKY: 0
+      GITHUB_TOKEN: ${{ inputs.registry == 'github' && github.token || '' }}
     outputs:
       mode: ${{ steps.mode.outputs.mode }}
       plan: ${{ steps.mode.outputs.publish-plan-artifact-id }}
     steps:
+      - name: Validate registry input
+        env:
+          REGISTRY: ${{ inputs.registry }}
+        run: |
+          case "$REGISTRY" in
+            npm|github) ;;
+            *) echo "::error::registry must be npm or github, got '$REGISTRY'"; exit 1 ;;
+          esac
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
+        with:
+          version: 2026.10.8
+
+      - if: inputs.registry == 'github'
+        run: echo "//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}" >> ~/.npmrc
 
       - run: bun install --frozen-lockfile
 
       - uses: changesets/action/select-mode@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         id: mode
 
+  version-pending:
+    needs: select-mode
+    if: needs.select-mode.outputs.mode == 'version'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - run: echo "::warning::Unreleased changesets in main; run 'changeset version' locally and push to publish"
+
   pack:
     needs: select-mode
     if: needs.select-mode.outputs.mode == 'publish'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
+      packages: read
+    env:
+      HUSKY: 0
+      GITHUB_TOKEN: ${{ inputs.registry == 'github' && github.token || '' }}
     outputs:
       packed: ${{ steps.pack.outputs.pack-dir-artifact-id }}
     steps:
@@ -46,6 +79,11 @@ jobs:
           persist-credentials: false
 
       - uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
+        with:
+          version: 2026.10.8
+
+      - if: inputs.registry == 'github'
+        run: echo "//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}" >> ~/.npmrc
 
       - run: bun install --frozen-lockfile
 
@@ -57,26 +95,28 @@ jobs:
   publish:
     needs: pack
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GITHUB_TOKEN: ${{ inputs.registry == 'github' && github.token || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
+        with:
+          version: 2026.10.8
+          install_args: bun
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           package-manager-cache: false
 
-      - uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
-        with:
-          install_args: bun
-
-      - run: bun install --frozen-lockfile --ignore-scripts
-
       - if: inputs.registry == 'github'
         run: echo "//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}" >> ~/.npmrc
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+
+      - run: bun install --frozen-lockfile --ignore-scripts
 
       - uses: changesets/action/publish@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         with:
