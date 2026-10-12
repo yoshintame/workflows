@@ -2,75 +2,23 @@ name: release-changesets
 
 on:
   workflow_call:
-    inputs:
-      registry:
-        description: npm (npmjs.com, OIDC trusted publishing) or github (GitHub Packages)
-        type: string
-        default: npm
 
 concurrency:
   group: release-${{ github.repository }}
   cancel-in-progress: false
 
+env:
+  MISE_VERSION: 2026.10.8
+
 jobs:
-  select-mode:
+  prepare:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: read
     env:
       HUSKY: 0
-      GITHUB_TOKEN: ${{ inputs.registry == 'github' && github.token || '' }}
-    outputs:
-      mode: ${{ steps.mode.outputs.mode }}
-      plan: ${{ steps.mode.outputs.publish-plan-artifact-id }}
-    steps:
-      - name: Validate registry input
-        env:
-          REGISTRY: ${{ inputs.registry }}
-        run: |
-          case "$REGISTRY" in
-            npm|github) ;;
-            *) echo "::error::registry must be npm or github, got '$REGISTRY'"; exit 1 ;;
-          esac
-
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
-        with:
-          version: 2026.10.8
-
-      - if: inputs.registry == 'github'
-        run: echo "//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}" >> ~/.npmrc
-
-      - run: bun install --frozen-lockfile
-
-      - uses: changesets/action/select-mode@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
-        id: mode
-
-  version-pending:
-    needs: select-mode
-    if: needs.select-mode.outputs.mode == 'version'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions: {}
-    steps:
-      - run: echo "::warning::Unreleased changesets in main; run 'changeset version' locally and push to publish"
-
-  pack:
-    needs: select-mode
-    if: needs.select-mode.outputs.mode == 'publish'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      packages: read
-    env:
-      HUSKY: 0
-      GITHUB_TOKEN: ${{ inputs.registry == 'github' && github.token || '' }}
     outputs:
       packed: ${{ steps.pack.outputs.pack-dir-artifact-id }}
     steps:
@@ -80,24 +28,36 @@ jobs:
 
       - uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
         with:
-          version: 2026.10.8
+          version: ${{ env.MISE_VERSION }}
 
-      - if: inputs.registry == 'github'
+      - name: Authenticate GitHub Packages
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: echo "//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}" >> ~/.npmrc
 
       - run: bun install --frozen-lockfile
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
-      - uses: changesets/action/pack@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+      - uses: changesets/action/select-mode@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
+        id: mode
+
+      - if: steps.mode.outputs.mode == 'version'
+        run: |
+          echo "::error::Pending changesets in main block publishing. Versions are bumped locally: run 'changeset version', commit the bumped versions together with the consumed changesets, and push. Already bumped versions are published only once .changeset holds no pending changesets."
+          exit 1
+
+      - if: steps.mode.outputs.mode == 'publish'
+        uses: changesets/action/pack@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         id: pack
         with:
-          publish-plan-artifact-id: ${{ needs.select-mode.outputs.plan }}
+          publish-plan-artifact-id: ${{ steps.mode.outputs.publish-plan-artifact-id }}
 
   publish:
-    needs: pack
+    needs: prepare
+    if: needs.prepare.outputs.packed != ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      GITHUB_TOKEN: ${{ inputs.registry == 'github' && github.token || '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -105,7 +65,7 @@ jobs:
 
       - uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
         with:
-          version: 2026.10.8
+          version: ${{ env.MISE_VERSION }}
           install_args: bun
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -113,12 +73,16 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
-      - if: inputs.registry == 'github'
+      - name: Authenticate GitHub Packages
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: echo "//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}" >> ~/.npmrc
 
       - run: bun install --frozen-lockfile --ignore-scripts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
       - uses: changesets/action/publish@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         with:
-          pack-dir-artifact-id: ${{ needs.pack.outputs.packed }}
+          pack-dir-artifact-id: ${{ needs.prepare.outputs.packed }}
           create-github-releases: true

@@ -4,7 +4,7 @@ Shared GitHub Actions reusable workflows for `yoshintame/*` repositories.
 
 | Workflow | Purpose | Project requirements |
 |---|---|---|
-| `ci.yml` | `hk check --all --slow` | `mise.toml` with `hk` and the step tools, `hk.pkl`; `bun.lock` / `bun.lockb` or `uv.lock` is installed when present |
+| `ci.yml` | `hk check --all --slow --no-fail-fast` | `mise.toml` with `hk` and the step tools, `hk.pkl`; `bun.lock` / `bun.lockb` or `uv.lock` is installed when present |
 | `ci-nix.yml` | `nix flake check -L` | `flake.nix` exposing `checks` (treefmt-nix, git-hooks.nix, own checks) |
 | `release-semantic.yml` | semantic-release for a single-package repo | `mise.toml` with `bun`, `semantic-release` in `devDependencies` |
 | `release-changesets.yml` | Changesets v3 publish without a Version PR | `mise.toml` with `bun`, `@changesets/cli` v3 in `devDependencies`; versions are bumped locally with `changeset version` |
@@ -42,31 +42,35 @@ jobs:
 
 Reference workflows by full commit SHA with the version comment; Renovate updates both.
 
-## Permissions
+## Registries and permissions
+
+The package's `publishConfig.registry` selects the registry; the workflows take no registry input. Release jobs always write a GitHub Packages token scoped to `npm.pkg.github.com`, and npm tries OIDC trusted publishing first, so the same workflow serves both registries.
 
 Permissions are granted by the caller. Release jobs inherit them; check jobs narrow them.
 
-| Workflow | `registry: npm` | `registry: github` |
+| Workflow | npmjs.com | GitHub Packages |
 |---|---|---|
 | `release-semantic.yml` | `contents`, `issues`, `pull-requests`: write; `id-token: write` | `contents`, `issues`, `pull-requests`, `packages`: write |
 | `release-changesets.yml` | `contents: write`, `id-token: write`, `packages: read` | `contents: write`, `packages: write` |
 
-`release-changesets.yml` always needs `packages`: its read-only jobs request `packages: read`.
+`release-changesets.yml` always needs `packages`: its `prepare` job requests `packages: read`.
 
-## Registries
+npmjs.com trusted publishing:
 
-The `registry` input only selects authentication. The package itself must point at the registry:
+- publish the first version manually: a trusted publisher can only be added to an existing package;
+- register the trusted publisher with the caller file `ci.yml` of the package repository, not this repository;
+- enable **Allow npm publish** on the trusted publisher: configurations created after 2026-09-03 allow only `npm stage publish` by default;
+- `repository.url` in `package.json` must match the GitHub repository.
 
-- **`npm`** (npmjs.com, OIDC trusted publishing):
-  - publish the first version manually: a trusted publisher can only be added to an existing package;
-  - register the trusted publisher with the caller file `ci.yml` of the package repository, not this repository;
-  - enable **Allow npm publish** on the trusted publisher: configurations created after 2026-09-03 allow only `npm stage publish` by default;
-  - `repository.url` in `package.json` must match the GitHub repository.
-- **`github`** (GitHub Packages): scoped package name and `publishConfig.registry: https://npm.pkg.github.com`.
+GitHub Packages: scoped package name and `publishConfig.registry: https://npm.pkg.github.com`.
 
 ## Changesets mode
 
-`release-changesets.yml` publishes only versions that are bumped and committed. Changeset files pushed without `changeset version` produce a warning and no release.
+`release-changesets.yml` publishes versions that are bumped and committed locally. Any pending changeset in `main` fails the run: Changesets checks for unpublished versions only when `.changeset` holds no pending changesets, so a pending one would silently hold back an already bumped release.
+
+## Isolation
+
+`release-changesets.yml` builds and packs in `prepare` without `id-token` and publishes in a separate job. `release-semantic.yml` installs, builds (`prepack`) and publishes in one job with `id-token`, because semantic-release runs `npm publish` on the package directory.
 
 ## Nix inputs
 
