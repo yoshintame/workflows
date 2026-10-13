@@ -5,10 +5,6 @@ on:
 
 permissions: {}
 
-env:
-  # renovate: datasource=github-releases depName=jdx/mise
-  MISE_VERSION: 2026.10.8
-
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -24,7 +20,7 @@ jobs:
 
       - uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
         with:
-          version: ${{ env.MISE_VERSION }}
+          version: 2026.10.8
 
       - name: Install dependencies
         run: |

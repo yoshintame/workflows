@@ -24,7 +24,7 @@ on:
 permissions: {}
 
 concurrency:
-  group: ${{ github.workflow }}-caller-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -44,7 +44,7 @@ jobs:
       id-token: write
 ```
 
-Reference workflows by full commit SHA with the version comment; Renovate updates both. The caller's concurrency group carries its own `-caller` part, so it never equals the `release` group of the called workflows, and it cancels superseded runs only for pull requests, never a release on `main`.
+Reference workflows by full commit SHA with the version comment; Renovate updates both. The caller's concurrency group cancels superseded runs only for pull requests, never a release on `main`.
 
 ## Registries and permissions
 
@@ -74,7 +74,7 @@ GitHub Packages: scoped package name and `publishConfig.registry: https://npm.pk
 
 ## Concurrency
 
-Release workflows use the concurrency group `release`. Do not reuse that group name in the caller: GitHub detects a deadlock between the caller and the called workflow.
+Release workflows queue in the concurrency group `yoshintame-workflows-release`, which no caller workflow is expected to use.
 
 ## Isolation
 

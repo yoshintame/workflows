@@ -1,4 +1,11 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>yoshintame/renovate-config#v1.0.0"]
+  "extends": ["github>yoshintame/renovate-config#v1.0.0"],
+  "packageRules": [
+    {
+      "description": "Updates in the workflows that callers pin must cut a release, so they are fix commits",
+      "matchFileNames": [".github/workflows/ci.yml", ".github/workflows/ci-nix.yml", ".github/workflows/release-*.yml"],
+      "semanticCommitType": "fix"
+    }
+  ]
 }
