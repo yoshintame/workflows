@@ -28,6 +28,3 @@ jobs:
           if [ -f uv.lock ]; then uv sync --locked; fi
 
       - run: hk check --all --slow --no-fail-fast
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          JACTIONLINT_ONLINE: 1

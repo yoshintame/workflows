@@ -90,4 +90,4 @@ Releases are `vX.Y.Z` tags with GitHub Releases, cut by this repository's own `r
 
 ## Checks
 
-`mise install && hk check --all` runs jactionlint (its `default` profile, with shellcheck for `run:` scripts) on this repository. `ci.yml` turns on its online checks (impostor commits, known vulnerable actions, archived repositories, stale refs) with the read-only `github.token`.
+`mise install && hk check --all` runs jactionlint (its `default` profile, with shellcheck for `run:` scripts) on this repository. CI runs its offline checks only, so a result depends on the code alone: vulnerable actions arrive as Renovate security PRs, and the online checks (impostor commits, archived repositories, stale refs) run by hand with `JACTIONLINT_ONLINE=1 GITHUB_TOKEN=$(gh auth token) hk check --all`.
