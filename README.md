@@ -4,8 +4,8 @@ Shared GitHub Actions reusable workflows for `yoshintame/*` repositories.
 
 | Workflow | Purpose | Project requirements |
 |---|---|---|
-| `ci.yml` | `hk check --all --slow --no-fail-fast` | `mise.toml` with `hk` and the step tools, `hk.pkl`; `bun.lock` / `bun.lockb` or `uv.lock` is installed when present; dependencies from GitHub Packages are not supported |
-| `ci-nix.yml` | `nix flake check -L` | `flake.nix` exposing `checks` (treefmt-nix, git-hooks.nix, own checks) |
+| `ci.yml` | `hk check --all --slow --no-fail-fast` | `mise.toml` with `hk` and the step tools, `hk.pkl`; `bun.lock` / `bun.lockb` or `uv.lock` is installed when present; Nix is installed when `flake.nix` is present, for the `nix.pkl` preset of hk-config; dependencies from GitHub Packages are not supported |
+| `ci-nix.yml` | `nix flake check -L` | `flake.nix` exposing `checks` (treefmt-nix, own checks); a flake repository with `hk.pkl` uses `ci.yml` instead |
 | `release-semantic.yml` | semantic-release for a single-package repo | `mise.toml` with `bun`, `semantic-release` in `devDependencies` |
 | `release-changesets.yml` | Changesets v3 publish without a Version PR | `mise.toml` with `bun`, `@changesets/cli` v3 in `devDependencies`; versions are bumped locally with `changeset version` |
 
@@ -82,7 +82,7 @@ Release workflows queue in the concurrency group `yoshintame-workflows-release`,
 
 ## Nix inputs
 
-`ci-nix.yml` accepts an optional `ssh_private_key` secret for private `git+ssh` flake inputs; the key needs read access to every such repository.
+`ci.yml` and `ci-nix.yml` accept an optional `ssh_private_key` secret for private `git+ssh` flake inputs; the key needs read access to every such repository. A GitHub deploy key is bound to one repository, so a flake with private inputs in several repositories needs the key of a machine user with read access to all of them.
 
 ## Versioning
 
