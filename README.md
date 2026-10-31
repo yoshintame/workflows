@@ -82,7 +82,7 @@ Release workflows queue in the concurrency group `yoshintame-workflows-release`,
 
 ## Nix inputs
 
-`ci.yml` and `ci-nix.yml` accept an optional `ssh_private_key` secret for private `git+ssh` flake inputs; the key needs read access to every such repository. A GitHub deploy key is bound to one repository, so a flake with private inputs in several repositories needs the key of a machine user with read access to all of them.
+`ci.yml` and `ci-nix.yml` accept an optional `ssh_private_key` secret for private `git+ssh` flake inputs; the key needs read access to every such repository. A GitHub deploy key is bound to one repository, and a collaborator on a personal-account repository always gets write access, so for private inputs in several personal repositories `ci.yml` also accepts `flake_inputs_token`: a fine-grained token with read-only Contents on those repositories. The job rewrites `ssh://git@github.com/` and `git@github.com:` to HTTPS with the token, and Nix fetches through git with that rewrite.
 
 ## Versioning
 
